@@ -54,8 +54,8 @@ python3 -m waifu2x.download_models
 python -m iw3.download_models
 ```
 
-### 7. Run Waifu2x under gfx 1030 HIP runtime
-NOTE: Even if you have an AMD card above gfx1030, we are forcing the 1030 runtime due to PyTorch ROCm issues. Any GPU lower than gfx1030 chipset is untested and likely won't work.
+### 7. Run Waifu2x under gfx1030 HIP runtime
+IMPORTANT: Even if you have an AMD card above gfx1030, we are forcing the 1030 runtime due to PyTorch ROCm issues. Any GPU lower than gfx1030 chipset is untested and likely won't work, but any GPU with a higher chipset should be compatible.
 
 This resolves the "HIP: Invalid device function" error.
 ```
