@@ -1,6 +1,58 @@
-My playground.
+## AMD ROCm 6.1 Instrucions w/ Anaconda3 on Arch Linux
 
-For the time being, I will make incompatible changes.
+### 1. Install Anaconda3
+```
+wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
+chmod +x Anaconda3-2024.10-1-Linux-x86_64.sh
+./Anaconda3-2024.10-1-Linux-x86_64.sh
+```
+
+### 2. Clone repo
+```
+git clone https://github.com/nagadomi/nunif.git
+cd nunif
+```
+
+If you want to use the `dev` branch, execute the following command.
+```
+git clone https://github.com/nagadomi/nunif.git -b dev
+```
+or
+```
+git fetch --all
+git checkout -b dev origin/dev
+```
+
+### 3. Create conda env
+```
+cd nunif
+conda create -n waifu2x -c conda-forge python=3.12
+```
+
+### 4. Install pytorch conda dependencies
+```
+conda activate waifu2x
+conda install -c conda-forge gxx_linux-64 pillow
+```
+
+### 5. Install waifu2x dependencies
+```
+pip3 install -r requirements-torch-rocm.txt
+pip3 install -r requirements.txt
+pip3 install wxpython
+```
+
+### 6. Install models
+```
+python3 -m waifu2x.download_models
+python -m iw3.download_models
+```
+
+### 7. Run Waifu2x under gfx 1030 HIP runtime
+NOTE: Even if you have an AMD card above gfx1030, we are forcing the 1030 runtime due to PyTorch ROCm issues. Any GPU lower than gfx1030 chipset is untested and likely won't work.
+```
+export HSA_OVERRIDE_GFX_VERSION=10.3.0 && python3 -m waifu2x.gui
+```
 
 ## waifu2x
 
