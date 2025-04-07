@@ -1,6 +1,8 @@
 ## AMD ROCm 6.1 Instructions w/ Anaconda3 on Arch Linux
 
 ### 1. Install Anaconda3
+https://www.anaconda.com/download/success
+
 ```
 wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
 chmod +x Anaconda3-2024.10-1-Linux-x86_64.sh
@@ -8,6 +10,8 @@ chmod +x Anaconda3-2024.10-1-Linux-x86_64.sh
 ```
 
 ### 2. Clone repo
+I personally use the 'dev' branch but 'master' should work fine aswell.
+
 ```
 git clone https://github.com/nagadomi/nunif.git
 cd nunif
@@ -24,12 +28,14 @@ git checkout -b dev origin/dev
 ```
 
 ### 3. Create conda env
+Python 3.12 was confirmed to work by me, but any compatible version is fine.
 ```
 cd nunif
 conda create -n waifu2x -c conda-forge python=3.12
 ```
 
 ### 4. Install pytorch conda dependencies
+These conda packages resolve Python issues with linking libraries at runtime.
 ```
 conda activate waifu2x
 conda install -c conda-forge gxx_linux-64 pillow
@@ -50,6 +56,8 @@ python -m iw3.download_models
 
 ### 7. Run Waifu2x under gfx 1030 HIP runtime
 NOTE: Even if you have an AMD card above gfx1030, we are forcing the 1030 runtime due to PyTorch ROCm issues. Any GPU lower than gfx1030 chipset is untested and likely won't work.
+
+This resolves the "HIP: Invalid device function" error.
 ```
 export HSA_OVERRIDE_GFX_VERSION=10.3.0 && python3 -m waifu2x.gui
 ```
