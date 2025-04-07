@@ -51,7 +51,7 @@ pip3 install wxpython
 ### 6. Install models
 ```
 python3 -m waifu2x.download_models
-python -m iw3.download_models
+python3 -m iw3.download_models
 ```
 
 ### 7. Run Waifu2x under gfx1030 HIP runtime
