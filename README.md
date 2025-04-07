@@ -1,4 +1,4 @@
-## AMD ROCm 6.1 Instrucions w/ Anaconda3 on Arch Linux
+## AMD ROCm 6.1 Instructions w/ Anaconda3 on Arch Linux
 
 ### 1. Install Anaconda3
 ```
