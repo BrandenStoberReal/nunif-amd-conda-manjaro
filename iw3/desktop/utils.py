@@ -8,6 +8,7 @@ import socket
 import struct
 from collections import deque
 import wx  # for mouse pointer
+from packaging.version import Version
 import torch
 from torchvision.io import encode_jpeg
 from .. import utils as IW3U
@@ -17,6 +18,10 @@ from .screenshot_process import ScreenshotProcess
 from .streaming_server import StreamingServer
 from nunif.device import create_device
 from nunif.initializer import gc_collect
+
+
+TORCH_VERSION = Version(torch.__version__)
+ENABLE_GPU_JPEG = (TORCH_VERSION.major, TORCH_VERSION.minor) >= (2, 7)
 
 
 def init_win32():
@@ -64,8 +69,8 @@ def is_private_address(ip):
     return False
 
 
-def to_uint8_cpu(x):
-    return x.mul(255).round_().to(torch.uint8).cpu()
+def to_uint8(x):
+    return x.mul(255).round_().to(torch.uint8)
 
 
 def fps_sleep(start_time, fps, resolution=2e-4):
@@ -75,13 +80,27 @@ def fps_sleep(start_time, fps, resolution=2e-4):
         time.sleep(resolution)
 
 
-def to_jpeg_data(frame, quality, tick):
+def to_jpeg_data(frame, quality, tick, gpu_jpeg=True):
     bio = io.BytesIO()
-    frame = to_uint8_cpu(frame)
-    # TODO: encode_jpeg has a bug with cuda, but that will be fixed in the next version.
-    frame = encode_jpeg(frame, quality=quality)
-    bio.write(frame.numpy())
-    return (bio.getbuffer().tobytes(), tick)
+    if ENABLE_GPU_JPEG and gpu_jpeg and frame.device.type == "cuda":
+        jpeg_data = encode_jpeg(to_uint8(frame), quality=quality).cpu()
+    else:
+        jpeg_data = encode_jpeg(to_uint8(frame).cpu(), quality=quality)
+    bio.write(jpeg_data.numpy())
+    jpeg_data = bio.getbuffer().tobytes()
+    # debug_jpeg_data(frame, jpeg_data)
+    return (jpeg_data, tick)
+
+
+def debug_jpeg_data(frame, jpeg_data):
+    from torchvision.io import decode_jpeg
+    jpeg_data = torch.tensor(list(jpeg_data), dtype=torch.uint8)
+    try:
+        decodec_frame = decode_jpeg(jpeg_data).cpu() / 255.0
+        diff = (frame.cpu() - decodec_frame).abs().mean()
+        print(diff)
+    except RuntimeError as e:
+        print(e)
 
 
 def create_parser():
@@ -99,6 +118,7 @@ def create_parser():
     parser.add_argument("--full-sbs", action="store_true", help="Use Full SBS for Pico4")
     parser.add_argument("--screenshot", type=str, default="pil", choices=["pil", "pil_mp", "wc_mp"],
                         help="Screenshot method")
+    parser.add_argument("--gpu-jpeg", action="store_true", help="Use GPU JPEG Encoder")
     parser.set_defaults(
         input="dummy",
         output="dummy",
@@ -206,7 +226,10 @@ def iw3_desktop_main(args, init_wxapp=True):
                 tick = time.perf_counter()
                 frame = screenshot_thread.get_frame()
                 sbs = IW3U.process_image(frame, args, depth_model, side_model, return_tensor=True)
-                server.set_frame_data(lambda: to_jpeg_data(sbs, quality=args.stream_quality, tick=tick))
+                if args.gpu_jpeg:
+                    server.set_frame_data(to_jpeg_data(sbs, quality=args.stream_quality, tick=tick, gpu_jpeg=args.gpu_jpeg))
+                else:
+                    server.set_frame_data(lambda: to_jpeg_data(sbs, quality=args.stream_quality, tick=tick, gpu_jpeg=args.gpu_jpeg))
 
                 if count % (args.stream_fps * 30) == 0:
                     gc_collect()

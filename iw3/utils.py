@@ -379,6 +379,8 @@ def make_video_codec_option(args):
         elif args.video_codec in {"hevc_nvenc", "h264_nvenc"}:
             options["rc"] = "constqp"
             options["qp"] = str(args.crf)
+            if torch.cuda.is_available() and args.gpu[0] >= 0:
+                options["gpu"] = str(args.gpu[0])
     elif args.video_codec == "libopenh264":
         # NOTE: It seems libopenh264 does not support most options.
         options = {"b": args.video_bitrate}
@@ -749,7 +751,9 @@ def process_video_full(input_filename, output_path, args, depth_model, side_mode
         @torch.inference_mode()
         def __batch_callback(x):
             device_index = args.state["devices"].index(x.device)
-            if args.max_output_height is not None or args.bg_session is not None:
+            if (args.max_output_height is not None or
+                    args.bg_session is not None or
+                    args.rotate_right or args.rotate_left):
                 # TODO: batch preprocess_image
                 with preprocess_lock[device_index]:
                     xs = [preprocess_image(xx, args) for xx in x]
@@ -1282,13 +1286,13 @@ def process_config_images(config, args, side_model):
     base_dir = path.dirname(args.input)
     rgb_dir, depth_dir, _ = config.resolve_paths(base_dir)
 
-    def fix_rgb_depth_pair(files1, files2):
-        # files1 and file2 are sorted
-        db1 = {path.basename(fn): fn for fn in files1}
-        db2 = {path.basename(fn): fn for fn in files2}
-        files2 = [fn for key, fn in db2.items() if key in db1]
-        files1 = [fn for key, fn in db1.items() if key in db2]
-        return files1, files2
+    def fix_rgb_depth_pair(rgb_files, depth_files):
+        rgb_db = {path.splitext(path.basename(fn))[0]: fn for fn in rgb_files}
+        depth_db = {path.splitext(path.basename(fn))[0]: fn for fn in depth_files}
+        and_keys = sorted(list(rgb_db.keys() & depth_db.keys()))
+        rgb_files = [rgb_db[key] for key in and_keys if key in rgb_db]
+        depth_files = [depth_db[key] for key in and_keys if key in depth_db]
+        return rgb_files, depth_files
 
     output_dir = args.output
     os.makedirs(output_dir, exist_ok=True)
